@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -13,10 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	webappv1 "my.domain/guestbook/api/v1"
 )
-
-func boolPtr(param bool) *bool {
-	return &param
-}
 
 func (r *GuestbookReconciler) DeploymentCreation(ctx context.Context, req ctrl.Request) error {
 	log := log.FromContext(ctx)
@@ -51,7 +48,7 @@ func (r *GuestbookReconciler) DeploymentCreation(ctx context.Context, req ctrl.R
 						Kind:       guestbook.Kind,
 						Name:       guestbook.Name,
 						UID:        guestbook.UID,
-						Controller: boolPtr(true),
+						Controller: ptr.To(true),
 					},
 				},
 			},
