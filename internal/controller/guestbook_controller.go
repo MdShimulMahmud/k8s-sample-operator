@@ -19,7 +19,9 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,25 +35,31 @@ type GuestbookReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=webapp.my.domain,resources=guestbooks,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=webapp.my.domain,resources=guestbooks/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=webapp.my.domain,resources=guestbooks/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Guestbook object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
 func (r *GuestbookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx)
 
+	guestbook := &webappv1.Guestbook{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name:      req.Name,
+		Namespace: req.Namespace,
+	}, guestbook)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Already Exists")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
 	if err := r.DeploymentCreation(ctx, req); err != nil {
 		log.Error(err, "Failed to reconcile Deployment")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.AddDeploymentFinalizer(ctx, req); err != nil {
+		log.Error(err, "Failed to reconcile Deployment Finalizer")
 		return ctrl.Result{}, err
 	}
 

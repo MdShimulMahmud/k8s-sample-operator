@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -13,49 +14,45 @@ import (
 	webappv1 "my.domain/guestbook/api/v1"
 )
 
-const GuestbookFinalizer = "my.domain/dev-protection"
+func boolPtr(param bool) *bool {
+	return &param
+}
 
 func (r *GuestbookReconciler) DeploymentCreation(ctx context.Context, req ctrl.Request) error {
 	log := log.FromContext(ctx)
 	guestbook := &webappv1.Guestbook{}
 	deployment := &appsv1.Deployment{}
 
-	err := r.Get(ctx, req.NamespacedName, guestbook)
+	err := r.Get(ctx, types.NamespacedName{
+		Name:      req.Name,
+		Namespace: req.Namespace,
+	}, guestbook)
+
 	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Error(err, "Guestbook not found")
-			return err
-		}
-		log.Error(err, "Failed to get Guestbook resource")
 		return err
 	}
 
-	if !guestbook.ObjectMeta.DeletionTimestamp.IsZero() {
-		guestbook.Finalizers = nil
-		if err := r.Update(ctx, guestbook); err != nil {
-			log.Error(err, "Failed to remove finalizer")
-			return err
-		}
+	err = r.Get(ctx, types.NamespacedName{
+		Name:      req.Name,
+		Namespace: req.Namespace,
+	}, deployment)
 
-	}
-
-	err = r.Get(ctx, req.NamespacedName, deployment)
-	if err == nil {
-		log.Info("Deployment exists, updating", "Deployment", deployment.Name)
-		if err = r.Update(ctx, deployment); err != nil {
-			log.Error(err, "Failed to update Deployment", "Deployment", deployment.Name)
-			return err
-		}
-		log.Info("Updated Deployment", "Deployment", deployment.Name)
-	} else if errors.IsNotFound(err) {
+	if err != nil && errors.IsNotFound(err) {
 		log.Info("Creating new Deployment", "Deployment", guestbook.Name)
 
 		deployment = &appsv1.Deployment{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      guestbook.Name,
 				Namespace: req.Namespace,
-				Finalizers: []string{
-					GuestbookFinalizer,
+				OwnerReferences: []v1.OwnerReference{
+
+					{
+						APIVersion: guestbook.APIVersion,
+						Kind:       guestbook.Kind,
+						Name:       guestbook.Name,
+						UID:        guestbook.UID,
+						Controller: boolPtr(true),
+					},
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -80,13 +77,22 @@ func (r *GuestbookReconciler) DeploymentCreation(ctx context.Context, req ctrl.R
 			},
 		}
 		if err = r.Create(ctx, deployment); err != nil {
-			log.Error(err, "Failed to create Deployment", "Deployment", guestbook.Name)
+			log.Error(err, "Failed to create Deployment", "Deployment:::", err.Error())
 			return err
 		}
 		log.Info("Created new Deployment", "Deployment", guestbook.Name)
 	} else {
-		log.Error(err, "Failed to get Deployment")
-		return err
+		log.Info("Deployment already exists")
+		if guestbook.Spec.Replicas != *deployment.Spec.Replicas {
+			deployment.Spec.Replicas = &guestbook.Spec.Replicas
+		}
+
+		if err := r.Update(ctx, deployment); err != nil {
+			log.Error(err, "Failed to update image!")
+			return err
+		}
+
+		return nil
 	}
 
 	return nil
