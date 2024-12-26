@@ -1,21 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend-deployment
+  name: {{ .Release.Name }}-frontend-deployment
   labels:
-    app: frontend
-    type: frontend
+    {{- include "frontend.Selectors" . | indent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: frontend
-      type: frontend
+      {{- include "frontend.Selectors" . | indent 6 }}
   template:
     metadata:
       labels:
-        app: frontend
-        type: frontend
+        {{- include "frontend.Selectors" . | indent 8 }}
     spec:
       containers:
       - name: frontend-container
@@ -28,21 +25,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend-deployment
+  name: {{ .Release.Name }}-backend-deployment
   labels:
-    app: backend
-    type: backend
+    {{- include "backend.Selectors" . | indent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: backend
-      type: backend
+      {{- include "backend.Selectors" . | indent 6 }}
   template:
     metadata:
       labels:
-        app: backend
-        type: backend
+        {{- include "backend.Selectors" . | indent 8 }}
     spec:
       containers:
       - name: backend-conatiner

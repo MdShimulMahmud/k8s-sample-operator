@@ -5,18 +5,19 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 frontend:
-  image: shimulmahmud/frontend:v1.1.8
+  image: shimulmahmud/frontend:v1.0.5
   port: 3000
 
 backend:
   image: shimulmahmud/backend:v1.1.8
   port: 5000
   secrets:
-    - password: akif
-      username: akif
-      database: cluster1.uktxj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1
+    password: akif
+    username: akif
+    database: cluster1.uktxj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1
 
 storageClassName:
   storage: standard
