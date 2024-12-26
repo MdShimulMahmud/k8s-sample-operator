@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend-deployment
+  labels:
+    {{- include "frontend.Selectors" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "frontend.Selectors" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "frontend.Selectors" . | indent 8 }}
+    spec:
+      containers:
+      - name: frontend-container
+        image: {{ .Values.frontend.image }}
+        ports:
+        - containerPort: {{ .Values.frontend.port }}
+
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-backend-deployment
+  labels:
+    {{- include "backend.Selectors" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "backend.Selectors" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "backend.Selectors" . | indent 8 }}
+    spec:
+      containers:
+      - name: backend-conatiner
+        image: {{ .Values.backend.image }}
+        ports:
+        - containerPort: {{ .Values.backend.port }}
+        volumeMounts:
+          - mountPath: /app/logs/
+            name: access-log-volume
+            # subPath: access.log
+        env:
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: database-secret
+                key: password
+          - name: DATABASE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: database-secret
+                key: username
+          - name: DATABASE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: configmap
+                key: database
+      volumes:
+        - name: access-log-volume
+          persistentVolumeClaim:
+            claimName: test-claim
